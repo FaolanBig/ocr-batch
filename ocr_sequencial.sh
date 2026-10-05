@@ -131,7 +131,8 @@ command -v cmp >/dev/null \
 
 SOURCE_DIR="$(realpath "$SOURCE_DIR")"
 TARGET_DIR="$(realpath -m "$TARGET_DIR")"
-CPU_THREADS="${OCR_JOBS:-2}"
+#CPU_THREADS="${OCR_JOBS:-2}"
+export CPU_THREADS="${OCR_JOBS:-2}"
 
 [[ "$CPU_THREADS" =~ ^[1-9][0-9]*$ ]] \
     || die "OCR_JOBS must be a positive integer."
