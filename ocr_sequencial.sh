@@ -10,6 +10,8 @@ SCRIPT_NAME="$(basename "$0")"
 
 SOURCE_DIR="${1:-}"
 TARGET_DIR="${2:-}"
+CURRENT_TMP=""
+CURRENT_MARKER_TMP=""
 
 #################
 ### Functions ###
@@ -60,7 +62,21 @@ EOF
 }
 
 cleanup() {
-    rm -f "$STATUS_FILE"
+    if [[ -n "${CURRENT_TMP:-}" ]]; then
+        rm -f -- "$CURRENT_TMP"
+    fi
+    if [[ -n "${CURRENT_MARKER_TMP:-}" ]]; then
+        rm -f -- "$CURRENT_MARKER_TMP"
+    fi
+    if [[ -n "${STATUS_FILE:-}" ]]; then
+        rm -f -- "$STATUS_FILE"
+    fi
+}
+
+marker_id_for_path() {
+    local digest
+    digest=$(printf '%s' "$1" | sha256sum) || return 1
+    printf '%s' "${digest%% *}"
 }
 
 handle_signal() {
@@ -90,6 +106,8 @@ command -v tmux >/dev/null \
 
 command -v realpath >/dev/null \
     || die "realpath not found"
+command -v sha256sum >/dev/null \
+    || die "sha256sum not found"
 
 SOURCE_DIR="$(realpath "$SOURCE_DIR")"
 TARGET_DIR="$(realpath -m "$TARGET_DIR")"
@@ -110,6 +128,8 @@ if [[ "$TARGET_DIR" == "$SOURCE_DIR/"* ]]; then
 fi
 
 mkdir -p "$TARGET_DIR"
+STATE_DIR="$TARGET_DIR/.ocr_sequencial_state"
+mkdir -p "$STATE_DIR"
 
 #####################
 ### tmux handling ###
@@ -119,7 +139,7 @@ if [[ -z "${TMUX:-}" ]]; then
     die "This script must be started from inside a tmux session."
 fi
 
-RUN_ID="$(date +%Y%m%d_%H%M%S)"
+RUN_ID="$(date +%Y%m%d_%H%M%S)_$$"
 
 STATUS_FILE="/tmp/ocr_status_${RUN_ID}"
 OCR_LOG="/tmp/ocr_output_${RUN_ID}.log"
@@ -196,6 +216,7 @@ TOTAL_PDFS=${#PDF_FILES[@]}
 PROCESSED_FILES=0
 PROCESSED_PDFS=0
 FAILED_PDFS=0
+FAILED_FILES=0
 
 START_TIME=$(date +%s)
 
@@ -227,10 +248,16 @@ for file in "${ALL_FILES[@]}"; do
         continue
     fi
 
-    if cp -a -- "$file" "$out"; then
-        :
+    copy_tmp="${out}.copy-${RUN_ID}.tmp"
+    CURRENT_TMP="$copy_tmp"
+    if cp -a -- "$file" "$copy_tmp" && mv -f -- "$copy_tmp" "$out"; then
+        CURRENT_TMP=""
     else
-        echo "[ERROR] Failed to copy: $file" >> "$ERROR_LOG"
+        rc=$?
+        echo "[ERROR] Failed to copy: $file (exit code=$rc)" | tee -a "$ERROR_LOG"
+        rm -f -- "$copy_tmp"
+        CURRENT_TMP=""
+        ((FAILED_FILES+=1))
     fi
 
     ((PROCESSED_FILES+=1))
@@ -248,12 +275,39 @@ for pdf in "${PDF_FILES[@]}"; do
     rel="${pdf#$SOURCE_DIR/}"
     out="$TARGET_DIR/$rel"
     tmp_out="${out}.ocr-${RUN_ID}.tmp.pdf"
+    marker_id=$(marker_id_for_path "$rel") || {
+        echo "[ERROR] Could not create completion marker id: $rel" | tee -a "$ERROR_LOG"
+        ((FAILED_PDFS+=1))
+        ((PROCESSED_FILES+=1))
+        ((PROCESSED_PDFS+=1))
+        update_status
+        continue
+    }
+    marker="$STATE_DIR/$marker_id"
+    marker_tmp="${marker}.tmp.$$"
+    source_hash=$(sha256sum -- "$pdf") || {
+        echo "[ERROR] Could not calculate source checksum: $pdf" | tee -a "$ERROR_LOG"
+        ((FAILED_PDFS+=1))
+        ((PROCESSED_FILES+=1))
+        ((PROCESSED_PDFS+=1))
+        update_status
+        continue
+    }
+    source_signature="$SOURCE_DIR/$rel:${source_hash%% *}"
 
     mkdir -p "$(dirname "$out")"
 
     CURRENT_FILE="$rel"
 
-    if [[ -f "$out" ]]; then
+    marker_matches=0
+    if [[ -f "$out" && -f "$marker" ]]; then
+        marker_signature=$(<"$marker")
+        if [[ "$marker_signature" == "$source_signature" ]]; then
+            marker_matches=1
+        fi
+    fi
+
+    if (( marker_matches )); then
         echo "[SKIP] $rel"
 
         ((PROCESSED_FILES+=1))
@@ -262,6 +316,13 @@ for pdf in "${PDF_FILES[@]}"; do
         update_status
         continue
     fi
+
+    if [[ -f "$out" ]]; then
+        echo "[INFO] Reprocessing unverified output: $rel"
+    fi
+
+    CURRENT_TMP="$tmp_out"
+    CURRENT_MARKER_TMP="$marker_tmp"
 
     {
         echo
@@ -285,12 +346,27 @@ for pdf in "${PDF_FILES[@]}"; do
         "$tmp_out" >> "$OCR_LOG" 2>&1
     then
         if mv -f -- "$tmp_out" "$out"; then
-            echo "[SUCCESS] completed OCR for $pdf"
+            if printf '%s\n' "$source_signature" > "$marker_tmp" \
+                && mv -f -- "$marker_tmp" "$marker"; then
+                CURRENT_TMP=""
+                CURRENT_MARKER_TMP=""
+                echo "[SUCCESS] completed OCR for $pdf"
+            else
+                rc=$?
+                echo "[ERROR] Could not save completion marker: $pdf (exit code=$rc)" \
+                    | tee -a "$ERROR_LOG"
+                rm -f -- "$marker_tmp"
+                CURRENT_TMP=""
+                CURRENT_MARKER_TMP=""
+                ((FAILED_PDFS+=1))
+            fi
         else
             rc=$?
             echo "[ERROR] Failed to publish OCR output: $pdf (exit code=$rc)" \
                 | tee -a "$ERROR_LOG"
             rm -f -- "$tmp_out"
+            CURRENT_TMP=""
+            CURRENT_MARKER_TMP=""
             ((FAILED_PDFS+=1))
         fi
     else
@@ -299,6 +375,8 @@ for pdf in "${PDF_FILES[@]}"; do
         echo "[ERROR] OCR failed: $pdf (exit code=$rc)" \
             | tee -a "$ERROR_LOG"
         rm -f -- "$tmp_out"
+        CURRENT_TMP=""
+        CURRENT_MARKER_TMP=""
         ((FAILED_PDFS+=1))
 
     fi
@@ -316,7 +394,7 @@ done
 
 END_TIME=$(date +%s)
 
-if (( FAILED_PDFS > 0 )); then
+if (( FAILED_PDFS > 0 || FAILED_FILES > 0 )); then
     JOB_RESULT="Job completed with errors."
 else
     JOB_RESULT="Job completed successfully."
@@ -331,7 +409,7 @@ Processed files:  $PROCESSED_FILES
 PDFs total:       $TOTAL_PDFS
 PDFs processed:   $PROCESSED_PDFS
 PDFs failed:      $FAILED_PDFS
-PDFs failed:      $FAILED_PDFS
+Other files failed: $FAILED_FILES
 
 Runtime:          $((END_TIME - START_TIME))s
 
@@ -345,7 +423,7 @@ echo "[INFO] Runtime: $((END_TIME - START_TIME))s"
 echo "[INFO] OCR log  : $OCR_LOG"
 echo "[INFO] Error log: $ERROR_LOG"
 
-if (( FAILED_PDFS > 0 )); then
-    echo "[ERROR] Finished with $FAILED_PDFS failed PDF(s). Rerun to retry them."
+if (( FAILED_PDFS > 0 || FAILED_FILES > 0 )); then
+    echo "[ERROR] Finished with $FAILED_PDFS failed PDF(s) and $FAILED_FILES other file error(s)."
     exit 1
 fi
