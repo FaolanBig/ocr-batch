@@ -2,9 +2,9 @@
 
 ## Installation
 
-Use either the Bash script at `scr/ocr_sequencial.sh` or the compiled binary at `bin/ocr_sequencial`. The binary is also available from the [GitHub Releases](https://github.com/FaolanBig/ocr-batch/releases) page. Both provide the current OCR workflow.
+Use either the Bash script at `src/ocr_sequencial.sh` or the compiled binary at `bin/ocr_sequencial`. The binary is also available from the [GitHub Releases](https://github.com/FaolanBig/ocr-batch/releases) page. Both provide the current OCR workflow.
 
-`scr/ocr.sh` is deprecated and should no longer be used. Use `ocr_sequencial.sh` or the `ocr_sequencial` binary instead; they provide a more modern and robust workflow, including safe output publishing and resumable PDF processing.
+`src/ocr.sh` is deprecated and should no longer be used. Use `ocr_sequencial.sh` or the `ocr_sequencial` binary instead; they provide a more modern and robust workflow, including safe output publishing and resumable PDF processing.
 
 `ocr_sequencial.sh` recursively processes a source directory and writes results to a target directory, preserving the directory structure. Non-PDF files are copied; PDF files are processed one at a time with OCRmyPDF.
 
@@ -21,7 +21,7 @@ Requirements: Bash, OCRmyPDF and its required OCR tools, and `tmux`. The usual G
 2. In the tmux window, change to the repository directory and run either the script or binary with the source and target directories:
 
    ```bash
-   bash scr/ocr_sequencial.sh "/path/to/source" "/path/to/target"
+   bash src/ocr_sequencial.sh "/path/to/source" "/path/to/target"
    ```
 
    Or run the binary:
@@ -30,14 +30,14 @@ Requirements: Bash, OCRmyPDF and its required OCR tools, and `tmux`. The usual G
    ./bin/ocr_sequencial "/path/to/source" "/path/to/target"
    ```
 
-   If the script is executable, you can use `./scr/ocr_sequencial.sh` instead.
+   If the script is executable, you can use `./src/ocr_sequencial.sh` instead.
 
 3. Monitor progress in the tmux panes that open automatically. When processing is complete, exit the tmux session with `exit`.
 
 You can optionally set the number of OCRmyPDF worker threads. The default is two:
 
 ```bash
-OCR_JOBS=4 bash scr/ocr_sequencial.sh "/path/to/source" "/path/to/target"
+OCR_JOBS=4 bash src/ocr_sequencial.sh "/path/to/source" "/path/to/target"
 ```
 
 `OCR_JOBS` must be a positive integer. Files are processed sequentially, but OCRmyPDF can use multiple threads internally according to this setting.

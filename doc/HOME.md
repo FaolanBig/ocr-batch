@@ -1,6 +1,6 @@
 # OCR Batch Script Documentation
 
-This directory contains the technical documentation for the OCR processing workflow implemented in [scr/ocr_sequencial.sh](../scr/ocr_sequencial.sh).
+This directory contains the technical documentation for the OCR processing workflow implemented in [scr/ocr_sequencial.sh](../src/ocr_sequencial.sh).
 
 The documentation is written in English and is intended to be suitable for a GitHub wiki or repository documentation page.
 
@@ -25,7 +25,7 @@ It has several important characteristics:
 
 ## Primary entry point
 
-- Script: [scr/ocr_sequencial.sh](../scr/ocr_sequencial.sh)
+- Script: [src/ocr_sequencial.sh](../src/ocr_sequencial.sh)
 - Native binary: [bin/ocr_sequencial](../bin/ocr_sequencial) (if present in the build output)
 
 ## Script purpose in one sentence
@@ -53,7 +53,7 @@ The script requires:
 ### Invocation
 
 ```bash
-bash scr/ocr_sequencial.sh "/path/to/source" "/path/to/target"
+bash src/ocr_sequencial.sh "/path/to/source" "/path/to/target"
 ```
 
 ### Runtime expectations
@@ -67,7 +67,7 @@ bash scr/ocr_sequencial.sh "/path/to/source" "/path/to/target"
 
 This documentation is intentionally technical and implementation-oriented. It focuses on how the script actually behaves, including edge cases and operational safeguards, rather than only describing the desired workflow.
 
-When there is a discrepancy between an older README statement and the actual implementation, the implementation in [scr/ocr_sequencial.sh](../scr/ocr_sequencial.sh) is treated as the authoritative source.
+When there is a discrepancy between an older README statement and the actual implementation, the implementation in [src/ocr_sequencial.sh](../src/ocr_sequencial.sh) is treated as the authoritative source.
 
 ---
 
