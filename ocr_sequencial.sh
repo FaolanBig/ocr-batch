@@ -12,6 +12,9 @@ SOURCE_DIR="${1:-}"
 TARGET_DIR="${2:-}"
 CURRENT_TMP=""
 CURRENT_MARKER_TMP=""
+FILE_LIST_TMP=""
+PROGRESS_PANE=""
+LOG_PANE=""
 
 #################
 ### Functions ###
@@ -62,6 +65,12 @@ EOF
 }
 
 cleanup() {
+    if [[ -n "${PROGRESS_PANE:-}" ]]; then
+        tmux kill-pane -t "$PROGRESS_PANE" >/dev/null 2>&1 || true
+    fi
+    if [[ -n "${LOG_PANE:-}" ]]; then
+        tmux kill-pane -t "$LOG_PANE" >/dev/null 2>&1 || true
+    fi
     if [[ -n "${CURRENT_TMP:-}" ]]; then
         rm -f -- "$CURRENT_TMP"
     fi
@@ -70,6 +79,9 @@ cleanup() {
     fi
     if [[ -n "${STATUS_FILE:-}" ]]; then
         rm -f -- "$STATUS_FILE"
+    fi
+    if [[ -n "${FILE_LIST_TMP:-}" ]]; then
+        rm -f -- "$FILE_LIST_TMP"
     fi
 }
 
@@ -108,6 +120,8 @@ command -v realpath >/dev/null \
     || die "realpath not found"
 command -v sha256sum >/dev/null \
     || die "sha256sum not found"
+command -v cmp >/dev/null \
+    || die "cmp not found"
 
 SOURCE_DIR="$(realpath "$SOURCE_DIR")"
 TARGET_DIR="$(realpath -m "$TARGET_DIR")"
@@ -123,7 +137,7 @@ if [[ "$SOURCE_DIR" == "$TARGET_DIR" ]]; then
     die "Source and target directory must be different."
 fi
 
-if [[ "$TARGET_DIR" == "$SOURCE_DIR/"* ]]; then
+if [[ "$SOURCE_DIR" == "/" || "$TARGET_DIR" == "$SOURCE_DIR/"* ]]; then
     die "Target directory must not be located inside source directory."
 fi
 
@@ -202,13 +216,20 @@ tail -n 50 -F '$OCR_LOG'
 
 echo "[INFO] Scanning source directory ..."
 
-mapfile -d '' ALL_FILES < <(
-    find "$SOURCE_DIR" -type f -print0
-)
+FILE_LIST_TMP=$(mktemp)
+if ! find "$SOURCE_DIR" -type f -print0 > "$FILE_LIST_TMP"; then
+    die "Failed to scan source directory: $SOURCE_DIR"
+fi
 
-mapfile -d '' PDF_FILES < <(
-    find "$SOURCE_DIR" -type f -iname '*.pdf' -print0
-)
+mapfile -d '' -t ALL_FILES < "$FILE_LIST_TMP"
+PDF_FILES=()
+for file in "${ALL_FILES[@]}"; do
+    if [[ "$file" =~ \.[Pp][Dd][Ff]$ ]]; then
+        PDF_FILES+=("$file")
+    fi
+done
+rm -f -- "$FILE_LIST_TMP"
+FILE_LIST_TMP=""
 
 TOTAL_FILES=${#ALL_FILES[@]}
 TOTAL_PDFS=${#PDF_FILES[@]}
@@ -230,10 +251,8 @@ echo "[INFO] Copying non-PDF files ..."
 
 for file in "${ALL_FILES[@]}"; do
 
-    rel="${file#$SOURCE_DIR/}"
+    rel="${file#"$SOURCE_DIR"/}"
     out="$TARGET_DIR/$rel"
-
-    mkdir -p "$(dirname "$out")"
 
     CURRENT_FILE="$rel"
 
@@ -241,8 +260,16 @@ for file in "${ALL_FILES[@]}"; do
         continue
     fi
 
-    if [[ -f "$out" ]]; then
+    if [[ -f "$out" ]] && cmp -s -- "$file" "$out"; then
         echo "[SKIP] $rel"
+        ((PROCESSED_FILES+=1))
+        update_status
+        continue
+    fi
+
+    if [[ -d "$out" ]] || ! mkdir -p -- "$(dirname "$out")"; then
+        echo "[ERROR] Could not prepare destination: $out" | tee -a "$ERROR_LOG"
+        ((FAILED_FILES+=1))
         ((PROCESSED_FILES+=1))
         update_status
         continue
@@ -272,9 +299,10 @@ echo "[INFO] Starting OCR processing ..."
 
 for pdf in "${PDF_FILES[@]}"; do
 
-    rel="${pdf#$SOURCE_DIR/}"
+    rel="${pdf#"$SOURCE_DIR"/}"
     out="$TARGET_DIR/$rel"
     tmp_out="${out}.ocr-${RUN_ID}.tmp.pdf"
+    CURRENT_FILE="$rel"
     marker_id=$(marker_id_for_path "$rel") || {
         echo "[ERROR] Could not create completion marker id: $rel" | tee -a "$ERROR_LOG"
         ((FAILED_PDFS+=1))
@@ -295,9 +323,14 @@ for pdf in "${PDF_FILES[@]}"; do
     }
     source_signature="$SOURCE_DIR/$rel:${source_hash%% *}"
 
-    mkdir -p "$(dirname "$out")"
-
-    CURRENT_FILE="$rel"
+    if ! mkdir -p -- "$(dirname "$out")"; then
+        echo "[ERROR] Could not prepare destination: $out" | tee -a "$ERROR_LOG"
+        ((FAILED_PDFS+=1))
+        ((PROCESSED_FILES+=1))
+        ((PROCESSED_PDFS+=1))
+        update_status
+        continue
+    fi
 
     marker_matches=0
     if [[ -f "$out" && -f "$marker" ]]; then
