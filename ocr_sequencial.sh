@@ -2,6 +2,12 @@
 
 set -Eeuo pipefail
 
+### DEPENDENCIES ###
+### ocrmypdf     ###
+### jbig2        ###
+### jbig2enc     ###
+####################
+
 #####################
 ### Configuration ###
 #####################
