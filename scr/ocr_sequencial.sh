@@ -2,6 +2,12 @@
 
 set -Eeuo pipefail
 
+##########################
+### Search for README  ###
+###  in this file for  ###
+### important comments ###
+##########################
+
 ####### DEPENDENCIES ########
 ### tmux                  ###
 ### ocrmypdf              ###
