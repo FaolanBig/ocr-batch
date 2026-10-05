@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+### !!! DEPRECATED !!! #####################################
+### This script is deprecated and will be removed in the ###
+### future. Please use scr/ocr_sequencial.sh instead.    ###
+############################################################
+
 ##########################
 ### Search for README  ###
 ###  in this file for  ###
