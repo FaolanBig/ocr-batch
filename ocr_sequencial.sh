@@ -334,9 +334,13 @@ for pdf in "${PDF_FILES[@]}"; do
 
     marker_matches=0
     if [[ -f "$out" && -f "$marker" ]]; then
-        marker_signature=$(<"$marker")
-        if [[ "$marker_signature" == "$source_signature" ]]; then
-            marker_matches=1
+        if marker_signature=$(cat -- "$marker" 2>/dev/null); then
+            if [[ "$marker_signature" == "$source_signature" ]]; then
+                marker_matches=1
+            fi
+        else
+            echo "[WARN] Could not read completion marker; reprocessing: $rel" \
+                | tee -a "$ERROR_LOG"
         fi
     fi
 
