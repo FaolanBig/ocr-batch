@@ -2,7 +2,7 @@
 
 ## Scope and purpose
 
-The script in [scr/ocr_sequencial.sh](../scr/ocr_sequencial.sh) is a batch OCR workflow for directory trees. It was designed to process a large source tree without requiring the user to manually watch each file and without losing safety guarantees when writing output.
+The script in [src/ocr_sequencial.sh](../src/ocr_sequencial.sh) is a batch OCR workflow for directory trees. It was designed to process a large source tree without requiring the user to manually watch each file and without losing safety guarantees when writing output.
 
 Its responsibilities are:
 
