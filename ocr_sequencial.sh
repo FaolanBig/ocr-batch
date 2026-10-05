@@ -50,6 +50,7 @@ Remaining files:  $remaining
 PDFs total:       $TOTAL_PDFS
 PDFs processed:   $PROCESSED_PDFS
 PDFs remaining:   $((TOTAL_PDFS - PROCESSED_PDFS))
+PDFs failed:      ${FAILED_PDFS:-0}
 
 Elapsed:          ${elapsed}s
 ETA:              ${eta}s
@@ -60,6 +61,15 @@ EOF
 
 cleanup() {
     rm -f "$STATUS_FILE"
+}
+
+handle_signal() {
+    local signal_name="$1"
+    local exit_code="$2"
+
+    echo "[INTERRUPTED] Received SIG${signal_name} while processing: ${CURRENT_FILE:-unknown}" \
+        | tee -a "$ERROR_LOG" >&2
+    exit "$exit_code"
 }
 
 trap cleanup EXIT
@@ -83,7 +93,10 @@ command -v realpath >/dev/null \
 
 SOURCE_DIR="$(realpath "$SOURCE_DIR")"
 TARGET_DIR="$(realpath -m "$TARGET_DIR")"
-CPU_THREADS="$(($(nproc --all) / 2))"
+CPU_THREADS="${OCR_JOBS:-2}"
+
+[[ "$CPU_THREADS" =~ ^[1-9][0-9]*$ ]] \
+    || die "OCR_JOBS must be a positive integer."
 
 [[ -d "$SOURCE_DIR" ]] \
     || die "Source directory does not exist."
@@ -113,6 +126,9 @@ OCR_LOG="/tmp/ocr_output_${RUN_ID}.log"
 ERROR_LOG="/tmp/ocr_errors_${RUN_ID}.log"
 
 touch "$STATUS_FILE" "$OCR_LOG" "$ERROR_LOG"
+trap 'handle_signal INT 130' INT
+trap 'handle_signal TERM 143' TERM
+trap 'handle_signal HUP 129' HUP
 
 CURRENT_PANE="$(tmux display-message -p "#{pane_id}")"
 
@@ -179,6 +195,7 @@ TOTAL_PDFS=${#PDF_FILES[@]}
 
 PROCESSED_FILES=0
 PROCESSED_PDFS=0
+FAILED_PDFS=0
 
 START_TIME=$(date +%s)
 
@@ -230,6 +247,7 @@ for pdf in "${PDF_FILES[@]}"; do
 
     rel="${pdf#$SOURCE_DIR/}"
     out="$TARGET_DIR/$rel"
+    tmp_out="${out}.ocr-${RUN_ID}.tmp.pdf"
 
     mkdir -p "$(dirname "$out")"
 
@@ -262,19 +280,26 @@ for pdf in "${PDF_FILES[@]}"; do
         --optimize 3 \
 	--output-type pdf \
         --skip-text \
-	--jobs $CPU_THREADS \
+	--jobs "$CPU_THREADS" \
         "$pdf" \
-        "$out" >> "$OCR_LOG" 2>&1
+        "$tmp_out" >> "$OCR_LOG" 2>&1
     then
-        echo "[SUCCESS] completed OCR for $pdf"
+        if mv -f -- "$tmp_out" "$out"; then
+            echo "[SUCCESS] completed OCR for $pdf"
+        else
+            rc=$?
+            echo "[ERROR] Failed to publish OCR output: $pdf (exit code=$rc)" \
+                | tee -a "$ERROR_LOG"
+            rm -f -- "$tmp_out"
+            ((FAILED_PDFS+=1))
+        fi
     else
-
         rc=$?
 
         echo "[ERROR] OCR failed: $pdf (exit code=$rc)" \
             | tee -a "$ERROR_LOG"
-
-        cp -a -- "$pdf" "$out" 2>/dev/null || true
+        rm -f -- "$tmp_out"
+        ((FAILED_PDFS+=1))
 
     fi
 
@@ -291,14 +316,22 @@ done
 
 END_TIME=$(date +%s)
 
+if (( FAILED_PDFS > 0 )); then
+    JOB_RESULT="Job completed with errors."
+else
+    JOB_RESULT="Job completed successfully."
+fi
+
 cat > "$STATUS_FILE" <<EOF
-Job completed successfully.
+$JOB_RESULT
 
 Total files:      $TOTAL_FILES
 Processed files:  $PROCESSED_FILES
 
 PDFs total:       $TOTAL_PDFS
 PDFs processed:   $PROCESSED_PDFS
+PDFs failed:      $FAILED_PDFS
+PDFs failed:      $FAILED_PDFS
 
 Runtime:          $((END_TIME - START_TIME))s
 
@@ -311,3 +344,8 @@ echo "[INFO] Finished."
 echo "[INFO] Runtime: $((END_TIME - START_TIME))s"
 echo "[INFO] OCR log  : $OCR_LOG"
 echo "[INFO] Error log: $ERROR_LOG"
+
+if (( FAILED_PDFS > 0 )); then
+    echo "[ERROR] Finished with $FAILED_PDFS failed PDF(s). Rerun to retry them."
+    exit 1
+fi
