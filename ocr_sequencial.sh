@@ -2,18 +2,18 @@
 
 set -Eeuo pipefail
 
-########################################
-# Configuration
-########################################
+#####################
+### Configuration ###
+#####################
 
 SCRIPT_NAME="$(basename "$0")"
 
 SOURCE_DIR="${1:-}"
 TARGET_DIR="${2:-}"
 
-########################################
-# Functions
-########################################
+#################
+### Functions ###
+#################
 
 die() {
     echo "[ERROR] $*" >&2
@@ -64,9 +64,9 @@ cleanup() {
 
 trap cleanup EXIT
 
-########################################
-# Validation
-########################################
+##################
+### Validation ###
+##################
 
 if [[ -z "$SOURCE_DIR" || -z "$TARGET_DIR" ]]; then
     die "Usage: $SCRIPT_NAME <source_dir> <target_dir>"
@@ -83,6 +83,7 @@ command -v realpath >/dev/null \
 
 SOURCE_DIR="$(realpath "$SOURCE_DIR")"
 TARGET_DIR="$(realpath -m "$TARGET_DIR")"
+CPU_THREADS="$(($(nproc --all) / 2))"
 
 [[ -d "$SOURCE_DIR" ]] \
     || die "Source directory does not exist."
@@ -97,9 +98,9 @@ fi
 
 mkdir -p "$TARGET_DIR"
 
-########################################
-# tmux handling
-########################################
+#####################
+### tmux handling ###
+#####################
 
 if [[ -z "${TMUX:-}" ]]; then
     die "This script must be started from inside a tmux session."
@@ -115,9 +116,9 @@ touch "$STATUS_FILE" "$OCR_LOG" "$ERROR_LOG"
 
 CURRENT_PANE="$(tmux display-message -p "#{pane_id}")"
 
-########################################
-# Create panes
-########################################
+####################
+### Create panes ###
+####################
 
 PROGRESS_PANE=$(
     tmux split-window \
@@ -137,9 +138,9 @@ LOG_PANE=$(
         -F "#{pane_id}"
 )
 
-########################################
-# Progress pane
-########################################
+#####################
+### Progress pane ###
+#####################
 
 tmux send-keys -t "$PROGRESS_PANE" "
 while true; do
@@ -151,17 +152,17 @@ while true; do
 done
 " C-m
 
-########################################
-# Log pane
-########################################
+################
+### Log pane ###
+################
 
 tmux send-keys -t "$LOG_PANE" "
 tail -n 50 -F '$OCR_LOG'
 " C-m
 
-########################################
-# Build file lists
-########################################
+#######################
+### Build file list ###
+#######################
 
 echo "[INFO] Scanning source directory ..."
 
@@ -183,9 +184,9 @@ START_TIME=$(date +%s)
 
 update_status
 
-########################################
-# Copy non-PDF files
-########################################
+##########################
+### Copy non-PDF files ###
+##########################
 
 echo "[INFO] Copying non-PDF files ..."
 
@@ -219,9 +220,9 @@ for file in "${ALL_FILES[@]}"; do
     update_status
 done
 
-########################################
-# OCR PDFs
-########################################
+################
+### OCR PDFs ###
+################
 
 echo "[INFO] Starting OCR processing ..."
 
@@ -261,11 +262,11 @@ for pdf in "${PDF_FILES[@]}"; do
         --optimize 3 \
 	--output-type pdf \
         --skip-text \
-	--jobs $(nproc --all) \
+	--jobs $CPU_THREADS \
         "$pdf" \
         "$out" >> "$OCR_LOG" 2>&1
     then
-        :
+        echo "[SUCCESS] completed OCR for $pdf"
     else
 
         rc=$?
@@ -284,9 +285,9 @@ for pdf in "${PDF_FILES[@]}"; do
 
 done
 
-########################################
-# Finished
-########################################
+################
+### Finished ###
+################
 
 END_TIME=$(date +%s)
 
