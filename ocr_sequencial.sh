@@ -3,6 +3,7 @@
 set -Eeuo pipefail
 
 ####### DEPENDENCIES ########
+### tmux                  ###
 ### ocrmypdf              ###
 ### jbig2                 ###
 ### jbig2enc              ###
