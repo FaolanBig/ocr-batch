@@ -1,5 +1,11 @@
 # OCR Batch: `ocr_sequencial.sh`
 
+## Installation
+
+Use either the Bash script at `scr/ocr_sequencial.sh` or the compiled binary at `bin/ocr_sequencial`. The binary is also available from the [GitHub Releases](https://github.com/FaolanBig/ocr-batch/releases) page. Both provide the current OCR workflow.
+
+`scr/ocr.sh` is deprecated and should no longer be used. Use `ocr_sequencial.sh` or the `ocr_sequencial` binary instead; they provide a more modern and robust workflow, including safe output publishing and resumable PDF processing.
+
 `ocr_sequencial.sh` recursively processes a source directory and writes results to a target directory, preserving the directory structure. Non-PDF files are copied; PDF files are processed one at a time with OCRmyPDF.
 
 ## Quick Start
@@ -12,20 +18,26 @@ Requirements: Bash, OCRmyPDF and its required OCR tools, and `tmux`. The usual G
    tmux new -s ocr
    ```
 
-2. In the tmux window, change to the directory containing the script and run it with the source and target directories:
+2. In the tmux window, change to the repository directory and run either the script or binary with the source and target directories:
 
    ```bash
-   bash ocr_sequencial.sh "/path/to/source" "/path/to/target"
+   bash scr/ocr_sequencial.sh "/path/to/source" "/path/to/target"
    ```
 
-   If the script is executable, you can use `./ocr_sequencial.sh` instead.
+   Or run the binary:
+
+   ```bash
+   ./bin/ocr_sequencial "/path/to/source" "/path/to/target"
+   ```
+
+   If the script is executable, you can use `./scr/ocr_sequencial.sh` instead.
 
 3. Monitor progress in the tmux panes that open automatically. When processing is complete, exit the tmux session with `exit`.
 
 You can optionally set the number of OCRmyPDF worker threads. The default is two:
 
 ```bash
-OCR_JOBS=4 bash ocr_sequencial.sh "/path/to/source" "/path/to/target"
+OCR_JOBS=4 bash scr/ocr_sequencial.sh "/path/to/source" "/path/to/target"
 ```
 
 `OCR_JOBS` must be a positive integer. Files are processed sequentially, but OCRmyPDF can use multiple threads internally according to this setting.
