@@ -34,7 +34,7 @@ Requirements: Bash, OCRmyPDF and its required OCR tools, and `tmux`. The usual G
 
 3. Monitor progress in the tmux panes that open automatically. When processing is complete, exit the tmux session with `exit`.
 
-You can optionally set the number of OCRmyPDF worker threads. The default is two:
+You can optionally set the number of OCRmyPDF worker threads. The default is 3/4 of the available cpu cores:
 
 ```bash
 OCR_JOBS=4 bash src/ocr_sequencial.sh "/path/to/source" "/path/to/target"
