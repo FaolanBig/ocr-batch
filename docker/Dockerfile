@@ -17,6 +17,12 @@ RUN apt-get update && apt-get install -y \
     git \
     ca-certificates \
     pkg-config \
+    libtool \
+    libleptonica-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libtiff-dev \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 #RUN snap install jbig2enc --edge
