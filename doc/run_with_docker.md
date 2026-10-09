@@ -27,11 +27,4 @@ Replace the example host paths and adjust `OCR_JOBS` to set the number of OCR th
 
 ## Run the script
 
-The script requires a tmux session. In the container, start tmux and run the script from the directory where it is installed:
-
-```bash
-tmux new-session
-bash /path/to/ocr_sequencial.sh
-```
-
-The script scans `/source`, OCRs PDF files, and copies other files to `/destination`. It creates progress and log panes in tmux. Completed OCR files and state markers are written to the output directory; logs are kept under `/tmp` in the container and are removed when the container exits.
+The container starts the script automatically (no tmux needed). It scans `/source`, OCRs PDF files, and copies other files to `/destination`. Script messages are shown in the terminal and also written to a log file; the ocrmypdf output and progress are only written to the log file. Logs are stored in `/destination/.ocr_sequencial_state/logs` (override with `-e LOG_DIR=...`). Completed OCR files and state markers are written to the output directory.
