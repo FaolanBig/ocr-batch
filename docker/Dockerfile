@@ -37,9 +37,9 @@ RUN git -c http.sslVerify=false clone https://github.com/agl/jbig2enc.git /tmp/j
 
 WORKDIR /app
 
-COPY ocr_sequencial.sh /app/ocr_sequencial.sh
+COPY ocr_sequencial_docker.sh /app/ocr_sequencial_docker.sh
 
-RUN chmod +x /app/ocr_sequencial.sh
+RUN chmod +x /app/ocr_sequencial_docker.sh
 
-#ENTRYPOINT ["/app/ocr_sequencial.sh"]
-ENTRYPOINT ["tmux","new-session","/app/ocr_sequencial.sh"]
+#ENTRYPOINT ["/app/ocr_sequencial_docker.sh"]
+ENTRYPOINT ["tmux","new-session","/app/ocr_sequencial_docker.sh"]
