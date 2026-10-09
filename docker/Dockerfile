@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y \
     autoconf \
     automake \
     libtool \
-    tmux \
     git \
     ca-certificates \
     pkg-config \
@@ -41,5 +40,4 @@ COPY ocr_sequencial_docker.sh /app/ocr_sequencial_docker.sh
 
 RUN chmod +x /app/ocr_sequencial_docker.sh
 
-#ENTRYPOINT ["/app/ocr_sequencial_docker.sh"]
-ENTRYPOINT ["tmux","new-session","/app/ocr_sequencial_docker.sh"]
+ENTRYPOINT ["/app/ocr_sequencial_docker.sh"]

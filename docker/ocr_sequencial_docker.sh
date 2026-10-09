@@ -19,7 +19,6 @@ set -Eeuo pipefail
 ##########################
 
 ####### DEPENDENCIES ########
-### tmux                  ###
 ### ocrmypdf              ###
 ### jbig2                 ###
 ### jbig2enc              ###
@@ -36,8 +35,6 @@ TARGET_DIR="/destination" # the real destination directory has to be mounted to 
 CURRENT_TMP=""
 CURRENT_MARKER_TMP=""
 FILE_LIST_TMP=""
-PROGRESS_PANE=""
-LOG_PANE=""
 
 #################
 ### Functions ###
@@ -88,12 +85,6 @@ EOF
 }
 
 cleanup() {
-    if [[ -n "${PROGRESS_PANE:-}" ]]; then
-        tmux kill-pane -t "$PROGRESS_PANE" >/dev/null 2>&1 || true
-    fi
-    if [[ -n "${LOG_PANE:-}" ]]; then
-        tmux kill-pane -t "$LOG_PANE" >/dev/null 2>&1 || true
-    fi
     if [[ -n "${CURRENT_TMP:-}" ]]; then
         rm -f -- "$CURRENT_TMP"
     fi
@@ -136,9 +127,6 @@ fi
 command -v ocrmypdf >/dev/null \
     || die "ocrmypdf not found"
 
-command -v tmux >/dev/null \
-    || die "tmux not found"
-
 command -v realpath >/dev/null \
     || die "realpath not found"
 command -v sha256sum >/dev/null \
@@ -172,70 +160,28 @@ mkdir -p "$TARGET_DIR"
 STATE_DIR="$TARGET_DIR/.ocr_sequencial_state"
 mkdir -p "$STATE_DIR"
 
-#####################
-### tmux handling ###
-#####################
-
-if [[ -z "${TMUX:-}" ]]; then
-    die "This script must be started from inside a tmux session."
-fi
+###############
+### Logging ###
+###############
 
 RUN_ID="$(date +%Y%m%d_%H%M%S)_$$"
 
+# logs are stored next to the output so they survive the container
+LOG_DIR="${LOG_DIR:-$STATE_DIR/logs}"
+mkdir -p "$LOG_DIR"
+
 STATUS_FILE="/tmp/ocr_status_${RUN_ID}"
-OCR_LOG="/tmp/ocr_output_${RUN_ID}.log"
-ERROR_LOG="/tmp/ocr_errors_${RUN_ID}.log"
+OCR_LOG="$LOG_DIR/ocr_output_${RUN_ID}.log"
+ERROR_LOG="$LOG_DIR/ocr_errors_${RUN_ID}.log"
 
 touch "$STATUS_FILE" "$OCR_LOG" "$ERROR_LOG"
 trap 'handle_signal INT 130' INT
 trap 'handle_signal TERM 143' TERM
 trap 'handle_signal HUP 129' HUP
 
-CURRENT_PANE="$(tmux display-message -p "#{pane_id}")"
-
-####################
-### Create panes ###
-####################
-
-PROGRESS_PANE=$(
-    tmux split-window \
-        -v \
-        -l 20 \
-        -P \
-        -F "#{pane_id}"
-)
-
-tmux select-pane -t "$CURRENT_PANE"
-
-LOG_PANE=$(
-    tmux split-window \
-        -h \
-        -l 120 \
-        -P \
-        -F "#{pane_id}"
-)
-
-#####################
-### Progress pane ###
-#####################
-
-tmux send-keys -t "$PROGRESS_PANE" "
-while true; do
-    clear
-    echo '==== OCR Progress ===='
-    echo
-    cat '$STATUS_FILE' 2>/dev/null || true
-    sleep 1
-done
-" C-m
-
-################
-### Log pane ###
-################
-
-tmux send-keys -t "$LOG_PANE" "
-tail -n 50 -F '$OCR_LOG'
-" C-m
+# everything the script prints goes to the terminal and to the log file;
+# ocrmypdf output (including its progress) is appended to the log file only
+exec > >(tee -a "$OCR_LOG") 2>&1
 
 #######################
 ### Build file list ###
@@ -406,6 +352,7 @@ for pdf in "${PDF_FILES[@]}"; do
 	--output-type pdf \
         --skip-text \
 	--jobs "$CPU_THREADS" \
+        --no-progress-bar \
         "$pdf" \
         "$tmp_out" >> "$OCR_LOG" 2>&1
     then
