@@ -2,18 +2,32 @@
 #FROM debian:bookworm-slim
 FROM jbarlow83/ocrmypdf:latest
 
+USER root
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
     build-essential \
     coreutils \
     findutils \
-    ocrmypdf \
+    autoconf \
+    automake \
+    libtool \
     tmux \
-    jbig2 \
-    snapd \
-    && rm -rf /var/lib/apt/lists/* \
-    && snap install jbig2enc --edge
+    git \
+    ca-certificates \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+#RUN snap install jbig2enc --edge
+
+RUN git -c http.sslVerify=false clone https://github.com/agl/jbig2enc.git /tmp/jbig2enc && \
+    cd /tmp/jbig2enc && \
+    ./autogen.sh && \
+    ./configure && \
+    make -j"$(nproc)" && \
+    make install && \
+    rm -rf /tmp/jbig2enc
 
 WORKDIR /app
 
@@ -21,4 +35,5 @@ COPY ocr_sequencial.sh /app/ocr_sequencial.sh
 
 RUN chmod +x /app/ocr_sequencial.sh
 
-ENTRYPOINT ["/app/ocr_sequencial.sh"]
+#ENTRYPOINT ["/app/ocr_sequencial.sh"]
+ENTRYPOINT ["tmux","new-session","-d","/app/ocr_sequencial.sh"]

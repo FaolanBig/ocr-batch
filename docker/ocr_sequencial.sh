@@ -8,6 +8,10 @@ set -Eeuo pipefail
 ### this script is intended to be run inside a Docker container ###
 ###################################################################
 
+# set OCR_JOBS to specify the number of CPU threads to use for OCR processing
+# set SOURCE_DIR to specify the source directory containing PDF files for OCR processing (-v /daten/input:/ext/source:ro) <-- the source directory is mounted in read-only mode
+# set TARGET_DIR to specify the target directory where processed PDF files will be saved (-v /daten/output:/ext/destination)
+
 ##########################
 ### Search for README  ###
 ###  in this file for  ###
@@ -27,8 +31,8 @@ set -Eeuo pipefail
 
 SCRIPT_NAME="$(basename "$0")"
 
-SOURCE_DIR="/ext/source" # the real source directory has to be mounted to the docker container
-TARGET_DIR="/ext/destination" # the real destination directory has to be mounted to the docker container
+SOURCE_DIR="/source" # the real source directory has to be mounted to the docker container
+TARGET_DIR="/destination" # the real destination directory has to be mounted to the docker container
 CURRENT_TMP=""
 CURRENT_MARKER_TMP=""
 FILE_LIST_TMP=""
@@ -147,7 +151,7 @@ TARGET_DIR="$(realpath -m "$TARGET_DIR")"
 #CPU_THREADS="${OCR_JOBS:-2}"
 #export CPU_THREADS="${OCR_JOBS:-2}"
 #export CPU_THREADS="${OCR_JOBS:-CPU_THREADS=$(($(nproc --all) / 2))}"
-export CPU_THREADS="$(($(nproc --all) * 3 / 4))"
+export CPU_THREADS="${OCR_JOBS:-$(($(nproc --all) * 3 / 4))}"
 
 
 [[ "$CPU_THREADS" =~ ^[1-9][0-9]*$ ]] \
