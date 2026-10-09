@@ -343,18 +343,32 @@ for pdf in "${PDF_FILES[@]}"; do
         echo
     } >> "$OCR_LOG"
 
-    if ocrmypdf \
-        --rotate-pages \
-        --deskew \
-        --clean \
-        --clean-final \
-        --optimize 3 \
-	--output-type pdf \
-        --skip-text \
-	--jobs "$CPU_THREADS" \
-        --no-progress-bar \
-        "$pdf" \
-        "$tmp_out" >> "$OCR_LOG" 2>&1
+    run_ocr() {
+        ocrmypdf \
+            --rotate-pages \
+            --deskew \
+            --clean \
+            --clean-final \
+            --optimize "$1" \
+            --output-type pdf \
+            --skip-text \
+            --jobs "$CPU_THREADS" \
+            --no-progress-bar \
+            "$pdf" \
+            "$tmp_out" >> "$OCR_LOG" 2>&1
+    }
+
+    ocr_rc=0
+    run_ocr 3 || ocr_rc=$?
+    if (( ocr_rc == 4 )); then
+        # exit code 4: output PDF invalid (seen with --optimize 3); retry with safer optimization
+        echo "[WARN] Invalid output with --optimize 3, retrying with --optimize 1: $rel"
+        rm -f -- "$tmp_out"
+        ocr_rc=0
+        run_ocr 1 || ocr_rc=$?
+    fi
+
+     if (( ocr_rc == 0 ))
     then
         if mv -f -- "$tmp_out" "$out"; then
             if printf '%s\n' "$source_signature" > "$marker_tmp" \
@@ -381,7 +395,7 @@ for pdf in "${PDF_FILES[@]}"; do
             ((FAILED_PDFS+=1))
         fi
     else
-        rc=$?
+        rc=$ocr_rc
 
         echo "[ERROR] OCR failed: $pdf (exit code=$rc)" \
             | tee -a "$ERROR_LOG"
