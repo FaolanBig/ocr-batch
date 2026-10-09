@@ -1,6 +1,7 @@
 #FROM python:3.12-slim
 #FROM debian:bookworm-slim
-FROM jbarlow83/ocrmypdf:latest
+# pinned to the version that is known to produce valid output with --optimize 3
+FROM jbarlow83/ocrmypdf:v15.2.0
 
 USER root
 

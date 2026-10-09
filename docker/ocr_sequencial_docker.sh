@@ -360,15 +360,8 @@ for pdf in "${PDF_FILES[@]}"; do
 
     ocr_rc=0
     run_ocr 3 || ocr_rc=$?
-    if (( ocr_rc == 4 )); then
-        # exit code 4: output PDF invalid (seen with --optimize 3); retry with safer optimization
-        echo "[WARN] Invalid output with --optimize 3, retrying with --optimize 1: $rel"
-        rm -f -- "$tmp_out"
-        ocr_rc=0
-        run_ocr 1 || ocr_rc=$?
-    fi
 
-     if (( ocr_rc == 0 ))
+    if (( ocr_rc == 0 ))
     then
         if mv -f -- "$tmp_out" "$out"; then
             if printf '%s\n' "$source_signature" > "$marker_tmp" \
