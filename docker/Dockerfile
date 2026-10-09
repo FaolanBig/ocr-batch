@@ -42,4 +42,4 @@ COPY ocr_sequencial.sh /app/ocr_sequencial.sh
 RUN chmod +x /app/ocr_sequencial.sh
 
 #ENTRYPOINT ["/app/ocr_sequencial.sh"]
-ENTRYPOINT ["tmux","new-session","-d","/app/ocr_sequencial.sh"]
+ENTRYPOINT ["tmux","new-session","/app/ocr_sequencial.sh"]
