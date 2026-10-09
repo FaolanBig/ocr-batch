@@ -9,8 +9,8 @@ set -Eeuo pipefail
 ###################################################################
 
 # set OCR_JOBS to specify the number of CPU threads to use for OCR processing
-# set SOURCE_DIR to specify the source directory containing PDF files for OCR processing (-v /daten/input:/ext/source:ro) <-- the source directory is mounted in read-only mode
-# set TARGET_DIR to specify the target directory where processed PDF files will be saved (-v /daten/output:/ext/destination)
+# set SOURCE_DIR to specify the source directory containing PDF files for OCR processing (-v /daten/input:/source:ro) <-- the source directory is mounted in read-only mode
+# set TARGET_DIR to specify the target directory where processed PDF files will be saved (-v /daten/output:/destination)
 
 ##########################
 ### Search for README  ###
