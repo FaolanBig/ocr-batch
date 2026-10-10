@@ -1,8 +1,8 @@
-# OCR Batch: `ocr_sequencial.sh`
+# Big Batch OCR: `ocr_sequencial.sh`
 
 ## Installation
 
-Use either the Bash script at `src/ocr_sequencial.sh` or the compiled binary at `bin/ocr_sequencial`. The binary is also available from the [GitHub Releases](https://github.com/FaolanBig/ocr-batch/releases) page. Both provide the current OCR workflow.
+Use either the Bash script at `src/ocr_sequencial.sh` or the compiled binary at `bin/ocr_sequencial`. The binary is also available from the [GitHub Releases](https://github.com/FaolanBig/big-batch-ocr/releases) page. Both provide the current OCR workflow.
 
 `src/ocr.sh` is deprecated and should no longer be used. Use `ocr_sequencial.sh` or the `ocr_sequencial` binary instead; they provide a more modern and robust workflow, including safe output publishing and resumable PDF processing.
 
