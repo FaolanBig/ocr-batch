@@ -1,4 +1,4 @@
-# OCR Batch Script Documentation
+# Big Batch OCR Script Documentation
 
 This directory contains the technical documentation for the OCR processing workflow implemented in [scr/ocr_sequencial.sh](../src/ocr_sequencial.sh).
 
