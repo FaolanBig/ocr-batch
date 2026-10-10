@@ -12,6 +12,14 @@ Use either the Bash script at `src/ocr_sequencial.sh` or the compiled binary at 
 
 Requirements: Bash, OCRmyPDF and its required OCR tools, and `tmux`. The usual GNU/Linux utilities `find`, `realpath`, `sha256sum`, `cmp`, `mktemp`, `cp`, `mv`, and `tail` must also be available. At startup, the script explicitly checks for `ocrmypdf`, `tmux`, `realpath`, `sha256sum`, and `cmp`.
 
+To build the binary from the Bash script, install `shc` and run:
+
+```bash
+./build/build.sh
+```
+
+The compiled binary is written to `bin/ocr_sequencial`. Build it on the platform where it will be run.
+
 1. Start a tmux session:
 
    ```bash
